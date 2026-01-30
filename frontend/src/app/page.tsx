@@ -34,26 +34,35 @@ export default function Home() {
         <div className="text-center space-y-8 max-w-4xl">
           {/* Logo/Title */}
           <div className="space-y-4">
-            <h1 className="text-7xl md:text-8xl font-bold text-white tracking-tight">
-              SuiPlace
+            <h1
+              className="text-7xl md:text-8xl font-bold tracking-tight"
+            >
+              <span
+                className="bg-clip-text text-transparent"
+                style={{
+                  backgroundImage: 'linear-gradient(90deg, #3B82F6, #FFFFFF, #3B82F6)',
+                  backgroundSize: '200% 100%',
+                  animation: 'gradient-x 3s ease infinite',
+                }}
+              >
+                Sui
+              </span>
+              <span className="text-white">Place</span>
             </h1>
-            <p className="text-xl md:text-2xl text-gray-300 font-light">
+            <p
+              className="text-xl md:text-2xl text-white font-light"
+              style={{ textShadow: '0 0 30px rgba(0,0,0,0.9), 0 0 60px rgba(0,0,0,0.7), 0 2px 10px rgba(0,0,0,0.9)' }}
+            >
               Collaborative pixel art on the Sui blockchain
             </p>
           </div>
 
-          {/* Description */}
-          <div className="space-y-4 max-w-2xl mx-auto">
-            <p className="text-gray-400 text-lg">
-              Place pixels, create art, and be part of a decentralized canvas where every pixel is owned on-chain.
-            </p>
-          </div>
 
           {/* CTA Button */}
           <div className="flex justify-center items-center pt-8">
             <Link href="/game">
-              <button className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/30">
-                Start Creating →
+              <button className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-medium rounded-full border border-white/20 hover:border-white/40 transition-all duration-300 backdrop-blur-sm">
+                Let's Paint
               </button>
             </Link>
           </div>
@@ -66,6 +75,18 @@ export default function Home() {
           Testnet
         </span>
       </div>
+
+      {/* Gradient animation keyframes */}
+      <style jsx>{`
+        @keyframes gradient-x {
+          0%, 100% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+        }
+      `}</style>
     </main>
   );
 }
