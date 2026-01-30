@@ -1,6 +1,6 @@
 // Canvas Configuration
-export const CANVAS_WIDTH = 200;
-export const CANVAS_HEIGHT = 200;
+export const CANVAS_WIDTH = 50;
+export const CANVAS_HEIGHT = 50;
 export const PIXEL_SIZE = 2; // Display size of each pixel
 export const COOLDOWN_MS = 10000; // 10 seconds
 

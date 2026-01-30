@@ -84,15 +84,14 @@ export default function Game() {
         </div>
       )}
 
-      <div 
-        className={`absolute bottom-0 left-0 right-0 z-50 transition-transform duration-500 ease-out ${
-          isPanelOpen ? 'translate-y-0' : 'translate-y-full'
-        }`}
+      <div
+        className={`absolute bottom-0 left-0 right-0 z-50 transition-transform duration-500 ease-out ${isPanelOpen ? 'translate-y-0' : 'translate-y-full'
+          }`}
         style={{ maxHeight: '70vh' }}
       >
         <div className="absolute inset-0 bg-gray-900/98 backdrop-blur-xl" />
         <div className="absolute top-0 left-0 right-0 h-px bg-gray-700" />
-        
+
         <div className="relative overflow-y-auto p-6" style={{ maxHeight: '70vh' }}>
           <div className="max-w-7xl mx-auto">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -114,7 +113,7 @@ export default function Game() {
                 <div className="space-y-2">
                   <div className="text-xs text-gray-300 bg-gray-900/30 px-2.5 py-2 rounded-lg">Click to place pixel</div>
                   <div className="text-xs text-gray-300 bg-gray-900/30 px-2.5 py-2 rounded-lg">Scroll to zoom</div>
-                  <div className="text-xs text-gray-300 bg-gray-900/30 px-2.5 py-2 rounded-lg">Shift + drag to pan</div>
+                  <div className="text-xs text-gray-300 bg-gray-900/30 px-2.5 py-2 rounded-lg">Drag to pan</div>
                   <div className="flex items-center justify-between text-xs text-gray-400 bg-gray-900/30 px-2.5 py-2 rounded-lg mt-3 border-t border-gray-700/50 pt-2">
                     <span>Canvas</span>
                     <span className="font-mono text-blue-400">{CANVAS_WIDTH} × {CANVAS_HEIGHT}</span>
@@ -128,9 +127,8 @@ export default function Game() {
 
       <button
         onClick={() => setIsPanelOpen(!isPanelOpen)}
-        className={`fixed left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${
-          isPanelOpen ? 'bottom-[calc(70vh-350px)]' : 'bottom-4'
-        }`}
+        className={`fixed left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${isPanelOpen ? 'bottom-[calc(70vh-350px)]' : 'bottom-4'
+          }`}
       >
         <div className="bg-gray-800/90 hover:bg-gray-700/90 backdrop-blur-md text-gray-200 px-4 py-2 rounded-lg border border-gray-700 hover:border-gray-600 shadow-xl transition-all duration-200">
           <span className={`block text-sm transition-transform duration-300 ${isPanelOpen ? 'rotate-180' : ''}`}>↑</span>

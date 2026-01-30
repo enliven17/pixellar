@@ -8,11 +8,42 @@ export default function Canvas({ onPixelClick }: { onPixelClick: (x: number, y: 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [scale, setScale] = useState(4);
-    const [offset, setOffset] = useState({ x: 0, y: 0 });
+    // Initialize offset to PIXEL_SIZE/2 (1) to align center of screen with center of a pixel (since 0 aligns with edge)
+    const [offset, setOffset] = useState({ x: PIXEL_SIZE / 2, y: PIXEL_SIZE / 2 });
     const [isDragging, setIsDragging] = useState(false);
     const [lastMouse, setLastMouse] = useState({ x: 0, y: 0 });
+    const dragDistanceRef = useRef(0);
+    const rawOffsetRef = useRef({ x: 0, y: 0 });
 
     const { pixels, isLoading, loadCanvas, setHoverPosition, hoverPosition, selectedColor } = useCanvasStore();
+
+    // Calculate selection based on offset/scale (Center of screen)
+    useEffect(() => {
+        const centerX_canvas = (CANVAS_WIDTH * PIXEL_SIZE) / 2;
+        const centerY_canvas = (CANVAS_HEIGHT * PIXEL_SIZE) / 2;
+
+        // Calculate the displacement in Unscaled Canvas Pixels
+        // Offset is in screen pixels (post-scale). 
+        // A "drag right" (positive offset) means the view moves left relative to canvas, 
+        // so we look at pixels to the LEFT of center.
+        const deltaX = -offset.x / scale;
+        const deltaY = -offset.y / scale;
+
+        const targetX = centerX_canvas + deltaX;
+        const targetY = centerY_canvas + deltaY;
+
+        const gridX = Math.floor(targetX / PIXEL_SIZE);
+        const gridY = Math.floor(targetY / PIXEL_SIZE);
+
+        if (gridX >= 0 && gridX < CANVAS_WIDTH && gridY >= 0 && gridY < CANVAS_HEIGHT) {
+            // Only update if changed to avoid loops/perf issues
+            if (hoverPosition?.x !== gridX || hoverPosition?.y !== gridY) {
+                setHoverPosition({ x: gridX, y: gridY });
+            }
+        } else {
+            if (hoverPosition !== null) setHoverPosition(null);
+        }
+    }, [offset, scale, setHoverPosition, hoverPosition]);
 
     // Load canvas on mount
     useEffect(() => {
@@ -38,28 +69,8 @@ export default function Canvas({ onPixelClick }: { onPixelClick: (x: number, y: 
             ctx.fillRect(x * PIXEL_SIZE, y * PIXEL_SIZE, PIXEL_SIZE, PIXEL_SIZE);
         });
 
-        // Draw hover indicator
-        if (hoverPosition) {
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(
-                hoverPosition.x * PIXEL_SIZE,
-                hoverPosition.y * PIXEL_SIZE,
-                PIXEL_SIZE,
-                PIXEL_SIZE
-            );
-            // Preview selected color
-            ctx.fillStyle = COLORS[selectedColor];
-            ctx.globalAlpha = 0.5;
-            ctx.fillRect(
-                hoverPosition.x * PIXEL_SIZE,
-                hoverPosition.y * PIXEL_SIZE,
-                PIXEL_SIZE,
-                PIXEL_SIZE
-            );
-            ctx.globalAlpha = 1;
-        }
-    }, [pixels, hoverPosition, selectedColor]);
+        // Hover drawing REMOVED for performance. Now handled by DOM overlay.
+    }, [pixels]);
 
     // Redraw on pixel changes
     useEffect(() => {
@@ -72,19 +83,38 @@ export default function Canvas({ onPixelClick }: { onPixelClick: (x: number, y: 
             const dx = e.clientX - lastMouse.x;
             const dy = e.clientY - lastMouse.y;
 
-            setOffset(prev => {
-                const newX = prev.x + dx;
-                const newY = prev.y + dy;
+            // Accumulate drag distance to distinguish click vs drag
+            dragDistanceRef.current += Math.abs(dx) + Math.abs(dy);
 
-                // Pan limits - keep at least some part of canvas visible
-                // Limit offset to roughly +/- canvas_size/2
-                const limitX = (CANVAS_WIDTH * PIXEL_SIZE * scale) / 1.5;
-                const limitY = (CANVAS_HEIGHT * PIXEL_SIZE * scale) / 1.5;
+            // Update raw offset tracking
+            rawOffsetRef.current.x += dx;
+            rawOffsetRef.current.y += dy;
 
-                return {
-                    x: Math.max(-limitX, Math.min(limitX, newX)),
-                    y: Math.max(-limitY, Math.min(limitY, newY))
-                };
+            // Snap logic:
+            // Center of screen (0,0 offset) aligns with x=50, y=50 (Canvas coords).
+            // x=50 is the boundary between pixel 24 (48-50) and pixel 25 (50-52).
+            // To align with a pixel center (e.g. 51), we need an offset of -1 or +1 (Unscaled).
+            // So valid offsets are Odd numbers: ..., -3, -1, 1, 3, ... (k * PIXEL_SIZE + PIXEL_SIZE/2)
+
+            const snapToGrid = (val: number, s: number) => {
+                const u = val / s; // Unscaled offset
+                const halfPixel = PIXEL_SIZE / 2;
+                // Formula: round((u - half) / size) * size + half
+                const snappedU = Math.round((u - halfPixel) / PIXEL_SIZE) * PIXEL_SIZE + halfPixel;
+                return snappedU * s;
+            };
+
+            const snappedX = snapToGrid(rawOffsetRef.current.x, scale);
+            const snappedY = snapToGrid(rawOffsetRef.current.y, scale);
+
+            // Apply limits (approx +/- canvas/1.5)
+            // We apply limits to the snapped value
+            const limitX = (CANVAS_WIDTH * PIXEL_SIZE * scale) / 1.5;
+            const limitY = (CANVAS_HEIGHT * PIXEL_SIZE * scale) / 1.5;
+
+            setOffset({
+                x: Math.max(-limitX, Math.min(limitX, snappedX)),
+                y: Math.max(-limitY, Math.min(limitY, snappedY))
             });
 
             setLastMouse({ x: e.clientX, y: e.clientY });
@@ -94,49 +124,66 @@ export default function Canvas({ onPixelClick }: { onPixelClick: (x: number, y: 
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        const rect = canvas.getBoundingClientRect();
-        // Adjust coordinate calculation for scale and pan
-        // We need to inverse the transform: (client - rect - offset) / scale
-        // But since checking hover on untransformed logic inside canvas pixel grid
-        const x = Math.floor((e.clientX - rect.left) / (PIXEL_SIZE * scale));
-        const y = Math.floor((e.clientY - rect.top) / (PIXEL_SIZE * scale));
+        // Mouse move logic for selection is REMOVED. Selection is now fixed to center.
+    }, [scale, isDragging, lastMouse]);
 
-        if (x >= 0 && x < CANVAS_WIDTH && y >= 0 && y < CANVAS_HEIGHT) {
-            setHoverPosition({ x, y });
-        } else {
-            setHoverPosition(null);
-        }
-    }, [scale, isDragging, lastMouse, setHoverPosition]);
-
-    // Handle click
+    // Handle click (Place pixel at center selection OR pan to click)
     const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-        if (isDragging) return;
+        // If we dragged a significant amount, ignore this as a click
+        if (dragDistanceRef.current > 5) return;
 
         const canvas = canvasRef.current;
         if (!canvas) return;
 
+        // Calculate clicked pixel coordinate
         const rect = canvas.getBoundingClientRect();
-        const x = Math.floor((e.clientX - rect.left) / (PIXEL_SIZE * scale));
-        const y = Math.floor((e.clientY - rect.top) / (PIXEL_SIZE * scale));
+        const x = Math.floor(((e.clientX - rect.left) / rect.width) * CANVAS_WIDTH);
+        const y = Math.floor(((e.clientY - rect.top) / rect.height) * CANVAS_HEIGHT);
 
-        if (x >= 0 && x < CANVAS_WIDTH && y >= 0 && y < CANVAS_HEIGHT) {
-            onPixelClick(x, y);
+        // Bounds check
+        if (x < 0 || x >= CANVAS_WIDTH || y < 0 || y >= CANVAS_HEIGHT) return;
+
+        // If clicking the currently selected (centered) pixel, place it
+        if (hoverPosition && hoverPosition.x === x && hoverPosition.y === y) {
+            onPixelClick(hoverPosition.x, hoverPosition.y);
+        } else {
+            // Otherwise, pan to center that pixel
+            const centerX_canvas = (CANVAS_WIDTH * PIXEL_SIZE) / 2;
+            const centerY_canvas = (CANVAS_HEIGHT * PIXEL_SIZE) / 2;
+
+            const targetX = (x + 0.5) * PIXEL_SIZE;
+            const targetY = (y + 0.5) * PIXEL_SIZE;
+
+            const newOffsetX = (centerX_canvas - targetX) * scale;
+            const newOffsetY = (centerY_canvas - targetY) * scale;
+
+            setOffset({ x: newOffsetX, y: newOffsetY });
         }
-    }, [scale, isDragging, onPixelClick]);
+    }, [isDragging, hoverPosition, onPixelClick, scale]);
 
     // Handle wheel for zoom
     const handleWheel = useCallback((e: React.WheelEvent) => {
         e.preventDefault();
         const delta = e.deltaY > 0 ? 0.9 : 1.1;
         // Limit zoom out to 1x and zoom in to 20x
-        setScale(prev => Math.max(1, Math.min(20, prev * delta)));
+        setScale(prev => Math.max(1, Math.min(40, prev * delta)));
     }, []);
 
     // Mouse down/up for panning
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
-        if (e.button === 1 || (e.button === 0 && e.shiftKey)) { // Middle click or shift+click
+        // Allow left click drag effectively everywhere if checks pass, 
+        // but typically we might want left-click to simple-click if no movement?
+        // Current logic: Middle or Shift+Left to drag.
+        // User wants "scrolling moves screen". Usually on mobile/modern web apps, 
+        // just Dragging the background (Left Click) pans the view.
+        // Let's enable Left Click Drag by default for better UX with this "center selection" model.
+
+        if (e.button === 0 || e.button === 1) {
             setIsDragging(true);
             setLastMouse({ x: e.clientX, y: e.clientY });
+            dragDistanceRef.current = 0;
+            // Sync raw offset with current snapped offset state at start of drag
+            rawOffsetRef.current = { ...offset };
         }
     }, []);
 
@@ -145,9 +192,9 @@ export default function Canvas({ onPixelClick }: { onPixelClick: (x: number, y: 
     }, []);
 
     const handleMouseLeave = useCallback(() => {
-        setHoverPosition(null);
+        // No longer clearing hover position on leave, as selection is camera-based
         setIsDragging(false);
-    }, [setHoverPosition]);
+    }, []);
 
     if (isLoading) {
         return (
@@ -160,9 +207,41 @@ export default function Canvas({ onPixelClick }: { onPixelClick: (x: number, y: 
     return (
         <div
             ref={containerRef}
-            className="overflow-hidden w-full h-full flex items-center justify-center bg-gray-900"
+            className="overflow-hidden w-full h-full flex items-center justify-center bg-gray-900 relative"
             onWheel={handleWheel}
         >
+            {/* Crosshair Overlay */}
+            <div
+                className="absolute pointer-events-none z-20 flex items-center justify-center p-0.5"
+                style={{
+                    width: Math.max(4, PIXEL_SIZE * scale + 4), // slightly larger than pixel
+                    height: Math.max(4, PIXEL_SIZE * scale + 4),
+                }}
+            >
+                {/* Top Left Corner */}
+                <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-black shadow-sm"></div>
+                {/* Top Right Corner */}
+                <div className="absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 border-black shadow-sm"></div>
+                {/* Bottom Left Corner */}
+                <div className="absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 border-black shadow-sm"></div>
+                {/* Bottom Right Corner */}
+                <div className="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-black shadow-sm"></div>
+
+                {/* Optional Center Dot or extra styling could go here */}
+
+                {/* Ghost Pixel Preview (Center) */}
+                <div
+                    className="absolute z-[-1]"
+                    style={{
+                        width: PIXEL_SIZE * scale,
+                        height: PIXEL_SIZE * scale,
+                        backgroundColor: COLORS[selectedColor],
+                        opacity: 0.5,
+                        boxShadow: '0 0 10px rgba(0,0,0,0.3)'
+                    }}
+                />
+            </div>
+
             <canvas
                 ref={canvasRef}
                 width={CANVAS_WIDTH * PIXEL_SIZE}
@@ -170,8 +249,9 @@ export default function Canvas({ onPixelClick }: { onPixelClick: (x: number, y: 
                 style={{
                     transform: `scale(${scale}) translate(${offset.x / scale}px, ${offset.y / scale}px)`,
                     imageRendering: 'pixelated',
-                    cursor: isDragging ? 'grabbing' : 'crosshair',
+                    cursor: isDragging ? 'grabbing' : 'default', // Using default (arrow) for better visibility
                     touchAction: 'none',
+                    transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)',
                 }}
                 className="border border-gray-700 shadow-2xl"
                 onMouseMove={handleMouseMove}
