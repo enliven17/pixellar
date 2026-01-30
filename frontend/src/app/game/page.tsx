@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import Link from 'next/link';
 import { useSignAndExecuteTransaction, useCurrentAccount } from '@mysten/dapp-kit';
 import Canvas from '@/components/Canvas';
 import ColorPicker from '@/components/ColorPicker';
@@ -9,6 +10,7 @@ import CooldownTimer from '@/components/CooldownTimer';
 import WalletButton from '@/components/WalletButton';
 import { useCanvasStore } from '@/lib/store';
 import { createDrawTransaction } from '@/lib/sui';
+import { upsertPixel } from '@/lib/supabase';
 import { COOLDOWN_MS, CANVAS_WIDTH, CANVAS_HEIGHT } from '@/lib/constants';
 
 export default function Game() {
@@ -16,6 +18,7 @@ export default function Game() {
   const { mutate: signAndExecute, isPending } = useSignAndExecuteTransaction();
   const { selectedColor, cooldownEnd, startCooldown, setPixel } = useCanvasStore();
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
 
   const handlePixelClick = useCallback(async (x: number, y: number) => {
@@ -40,13 +43,29 @@ export default function Game() {
       signAndExecute(
         { transaction: tx },
         {
-          onSuccess: () => {
+          onSuccess: async () => {
             console.log('Pixel placed successfully!');
             startCooldown(COOLDOWN_MS);
+
+            // Show success notification
+            setSuccessMessage('Pixel placed successfully!');
+            setTimeout(() => setSuccessMessage(null), 3000);
+
+            // Direct write to Supabase (bypassing indexer)
+            if (account) {
+              await upsertPixel(x, y, selectedColor, account.address);
+            }
           },
-          onError: (err) => {
+          onError: (err: Error) => {
             console.error('Transaction failed:', err);
-            setError('Transaction failed. Please try again.');
+
+            // Check if user rejected the transaction
+            const errorMessage = err.message?.toLowerCase() || '';
+            if (errorMessage.includes('rejected') || errorMessage.includes('user rejected') || errorMessage.includes('cancelled') || errorMessage.includes('denied')) {
+              setError('Transaction rejected by user.');
+            } else {
+              setError('Transaction failed. Please try again.');
+            }
           }
         }
       );
@@ -61,7 +80,9 @@ export default function Game() {
       <Canvas onPixelClick={handlePixelClick} />
 
       <div className="absolute top-4 left-4 z-40 flex items-center gap-2 bg-gray-900/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-gray-800/50">
-        <h1 className="text-sm font-bold text-white">SuiPlace</h1>
+        <Link href="/">
+          <h1 className="text-sm font-bold text-white hover:text-blue-400 transition-colors cursor-pointer">SuiPlace</h1>
+        </Link>
         <span className="text-xs px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded font-medium">Testnet</span>
       </div>
 
@@ -79,8 +100,14 @@ export default function Game() {
       )}
 
       {error && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-red-500/90 text-white px-4 py-2 rounded-lg shadow-lg z-40">
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-red-500/90 text-white px-4 py-2 rounded-lg shadow-lg z-40 animate-pulse">
           {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-green-500/90 text-white px-4 py-2 rounded-lg shadow-lg z-40">
+          ✓ {successMessage}
         </div>
       )}
 

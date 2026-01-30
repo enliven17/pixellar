@@ -3,8 +3,8 @@ import { CANVAS_WIDTH, CANVAS_HEIGHT, COLORS, ColorIndex } from './constants';
 import { fetchAllPixels, subscribeToPixelChanges, PixelRow } from './supabase';
 
 interface CanvasState {
-    // Pixel grid: Map of "x,y" -> color index
-    pixels: Map<string, number>;
+    // Pixel grid: Map of "x,y" -> { color: number, owner: string | null }
+    pixels: Map<string, { color: number; owner: string | null }>;
 
     // Selected color for drawing
     selectedColor: ColorIndex;
@@ -19,7 +19,7 @@ interface CanvasState {
     cooldownEnd: number | null;
 
     // Actions
-    setPixel: (x: number, y: number, color: number) => void;
+    setPixel: (x: number, y: number, color: number, owner?: string | null) => void;
     setSelectedColor: (color: ColorIndex) => void;
     setHoverPosition: (pos: { x: number; y: number } | null) => void;
     loadCanvas: () => Promise<void>;
@@ -34,10 +34,14 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     isLoading: true,
     cooldownEnd: null,
 
-    setPixel: (x, y, color) => {
+    setPixel: (x, y, color, owner = null) => {
         set((state) => {
             const newPixels = new Map(state.pixels);
-            newPixels.set(`${x},${y}`, color);
+            const current = newPixels.get(`${x},${y}`) || { color: 0, owner: null };
+            newPixels.set(`${x},${y}`, {
+                color,
+                owner: owner ?? current.owner
+            });
             return { pixels: newPixels };
         });
     },
@@ -51,17 +55,20 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
         try {
             const pixelData = await fetchAllPixels();
-            const pixelMap = new Map<string, number>();
+            const pixelMap = new Map<string, { color: number; owner: string | null }>();
 
             for (const pixel of pixelData) {
-                pixelMap.set(`${pixel.x},${pixel.y}`, pixel.color);
+                pixelMap.set(`${pixel.x},${pixel.y}`, {
+                    color: pixel.color,
+                    owner: pixel.last_painter
+                });
             }
 
             set({ pixels: pixelMap, isLoading: false });
 
             // Subscribe to real-time updates
             subscribeToPixelChanges((pixel) => {
-                get().setPixel(pixel.x, pixel.y, pixel.color);
+                get().setPixel(pixel.x, pixel.y, pixel.color, pixel.last_painter);
             });
 
         } catch (error) {
@@ -79,7 +86,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     },
 
     getPixelColor: (x, y) => {
-        const colorIndex = get().pixels.get(`${x},${y}`);
-        return colorIndex !== undefined ? COLORS[colorIndex as ColorIndex] : COLORS[0];
+        const pixel = get().pixels.get(`${x},${y}`);
+        return pixel ? COLORS[pixel.color as ColorIndex] : COLORS[0];
     },
 }));

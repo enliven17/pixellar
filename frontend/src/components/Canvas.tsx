@@ -63,9 +63,9 @@ export default function Canvas({ onPixelClick }: { onPixelClick: (x: number, y: 
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // Draw all pixels
-        pixels.forEach((colorIndex, key) => {
+        pixels.forEach((pixelData, key) => {
             const [x, y] = key.split(',').map(Number);
-            ctx.fillStyle = COLORS[colorIndex as ColorIndex];
+            ctx.fillStyle = COLORS[pixelData.color as ColorIndex];
             ctx.fillRect(x * PIXEL_SIZE, y * PIXEL_SIZE, PIXEL_SIZE, PIXEL_SIZE);
         });
 
@@ -107,14 +107,17 @@ export default function Canvas({ onPixelClick }: { onPixelClick: (x: number, y: 
             const snappedX = snapToGrid(rawOffsetRef.current.x, scale);
             const snappedY = snapToGrid(rawOffsetRef.current.y, scale);
 
-            // Apply limits (approx +/- canvas/1.5)
-            // We apply limits to the snapped value
-            const limitX = (CANVAS_WIDTH * PIXEL_SIZE * scale) / 1.5;
-            const limitY = (CANVAS_HEIGHT * PIXEL_SIZE * scale) / 1.5;
+            // Apply limits
+            // We want the center of the screen to ALWAYS be within the canvas bounds.
+            // Max offset corresponds to the center being at x=0 or x=100.
+            // So Max Offset = +/- (CanvasWidth / 2) * scale.
+            // We subtract half a pixel (scaled) to stop exactly on the center of the last pixel.
+            const maxOffsetX = (CANVAS_WIDTH * PIXEL_SIZE * scale) / 2 - (PIXEL_SIZE * scale) / 2;
+            const maxOffsetY = (CANVAS_HEIGHT * PIXEL_SIZE * scale) / 2 - (PIXEL_SIZE * scale) / 2;
 
             setOffset({
-                x: Math.max(-limitX, Math.min(limitX, snappedX)),
-                y: Math.max(-limitY, Math.min(limitY, snappedY))
+                x: Math.max(-maxOffsetX, Math.min(maxOffsetX, snappedX)),
+                y: Math.max(-maxOffsetY, Math.min(maxOffsetY, snappedY))
             });
 
             setLastMouse({ x: e.clientX, y: e.clientY });
@@ -165,9 +168,48 @@ export default function Canvas({ onPixelClick }: { onPixelClick: (x: number, y: 
     const handleWheel = useCallback((e: React.WheelEvent) => {
         e.preventDefault();
         const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        // Limit zoom out to 1x and zoom in to 20x
-        setScale(prev => Math.max(1, Math.min(40, prev * delta)));
-    }, []);
+
+        // Capture the currently centered pixel BEFORE changing scale
+        // This uses the same calculation as the selection useEffect
+        const centerX_canvas = (CANVAS_WIDTH * PIXEL_SIZE) / 2;
+        const centerY_canvas = (CANVAS_HEIGHT * PIXEL_SIZE) / 2;
+
+        // Calculate current centered pixel from current offset and scale
+        const currentDeltaX = -offset.x / scale;
+        const currentDeltaY = -offset.y / scale;
+        const currentTargetX = centerX_canvas + currentDeltaX;
+        const currentTargetY = centerY_canvas + currentDeltaY;
+        const currentGridX = Math.floor(currentTargetX / PIXEL_SIZE);
+        const currentGridY = Math.floor(currentTargetY / PIXEL_SIZE);
+
+        // Calculate the center of this pixel (in canvas coordinates)
+        const pixelCenterX = (currentGridX + 0.5) * PIXEL_SIZE;
+        const pixelCenterY = (currentGridY + 0.5) * PIXEL_SIZE;
+
+        setScale(prevScale => {
+            const newScale = Math.max(1, Math.min(40, prevScale * delta));
+
+            // Calculate the new offset needed to keep the SAME pixel centered
+            // Formula: offset = (centerX_canvas - pixelCenterX) * newScale
+            const newOffsetX = (centerX_canvas - pixelCenterX) * newScale;
+            const newOffsetY = (centerY_canvas - pixelCenterY) * newScale;
+
+            // Apply strict limits
+            const maxOffsetX = (CANVAS_WIDTH * PIXEL_SIZE * newScale) / 2 - (PIXEL_SIZE * newScale) / 2;
+            const maxOffsetY = (CANVAS_HEIGHT * PIXEL_SIZE * newScale) / 2 - (PIXEL_SIZE * newScale) / 2;
+
+            const clampedX = Math.max(-maxOffsetX, Math.min(maxOffsetX, newOffsetX));
+            const clampedY = Math.max(-maxOffsetY, Math.min(maxOffsetY, newOffsetY));
+
+            // Update raw ref to match
+            rawOffsetRef.current = { x: clampedX, y: clampedY };
+
+            // Set offset directly (not using setOffset callback as we're already in setScale callback)
+            setOffset({ x: clampedX, y: clampedY });
+
+            return newScale;
+        });
+    }, [offset, scale]);
 
     // Mouse down/up for panning
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -212,7 +254,7 @@ export default function Canvas({ onPixelClick }: { onPixelClick: (x: number, y: 
         >
             {/* Crosshair Overlay */}
             <div
-                className="absolute pointer-events-none z-20 flex items-center justify-center p-0.5"
+                className={`absolute pointer-events-none z-20 flex items-center justify-center p-0.5 transition-opacity duration-200 ${hoverPosition ? 'opacity-100' : 'opacity-0'}`}
                 style={{
                     width: Math.max(4, PIXEL_SIZE * scale + 4), // slightly larger than pixel
                     height: Math.max(4, PIXEL_SIZE * scale + 4),

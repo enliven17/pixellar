@@ -52,6 +52,30 @@ export async function fetchAllPixels(): Promise<PixelRow[]> {
     return data || [];
 }
 
+// Upsert a pixel directly (Bypassing Indexer)
+export async function upsertPixel(x: number, y: number, color: number, painter: string | null) {
+    const client = getSupabaseClient();
+    if (!client) return;
+
+    try {
+        const { error } = await client
+            .from('pixels')
+            .upsert({
+                x,
+                y,
+                color,
+                last_painter: painter,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'x,y' });
+
+        if (error) {
+            console.error('Error updating Supabase:', error);
+        }
+    } catch (e) {
+        console.error('Exception updating Supabase:', e);
+    }
+}
+
 // Subscribe to pixel changes
 export function subscribeToPixelChanges(
     onPixelChange: (pixel: PixelRow) => void
