@@ -8,8 +8,8 @@ export default function PixelInfo() {
 
     if (!hoverPosition) {
         return (
-            <div className="text-gray-400 text-sm">
-                Hover over a pixel to see info
+            <div className="flex items-center justify-center h-20 text-gray-500 text-xs bg-gray-900/30 rounded-lg border border-gray-700/50 border-dashed">
+                Hover over canvas
             </div>
         );
     }
@@ -19,14 +19,26 @@ export default function PixelInfo() {
     const color = COLORS[colorIndex as ColorIndex];
 
     return (
-        <div className="flex items-center gap-3 text-sm">
-            <div
-                className="w-6 h-6 rounded border border-gray-600"
-                style={{ backgroundColor: color }}
-            />
-            <div className="text-gray-300">
-                <span className="font-mono">({x}, {y})</span>
-                <span className="text-gray-500 ml-2">Color: {colorIndex}</span>
+        <div className="bg-gray-900/40 backdrop-blur-sm rounded-lg p-3 border border-gray-700/50">
+            <div className="flex items-center gap-3">
+                <div 
+                    className="w-12 h-12 rounded-lg border-2 border-gray-600 shadow-lg"
+                    style={{ backgroundColor: color }}
+                />
+                <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Position</span>
+                        <span className="text-xs font-mono text-gray-200 bg-gray-800/50 px-2 py-0.5 rounded">
+                            {x}, {y}
+                        </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Color</span>
+                        <span className="text-xs font-mono text-blue-400 bg-gray-800/50 px-2 py-0.5 rounded">
+                            #{colorIndex}
+                        </span>
+                    </div>
+                </div>
             </div>
         </div>
     );

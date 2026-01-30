@@ -28,8 +28,8 @@ export default function CooldownTimer() {
 
     if (remaining === 0) {
         return (
-            <div className="text-green-400 text-sm font-medium">
-                ✓ Ready to place
+            <div className="bg-green-500/10 text-green-400 px-2.5 py-1.5 rounded text-xs font-medium border border-green-500/30">
+                Ready
             </div>
         );
     }
@@ -37,13 +37,13 @@ export default function CooldownTimer() {
     const progress = ((COOLDOWN_MS / 1000 - remaining) / (COOLDOWN_MS / 1000)) * 100;
 
     return (
-        <div className="w-32">
-            <div className="text-orange-400 text-sm font-medium mb-1">
-                Wait {remaining}s
+        <div className="bg-orange-500/10 px-2.5 py-1.5 rounded border border-orange-500/30">
+            <div className="text-orange-400 text-xs font-medium mb-1">
+                {remaining}s
             </div>
-            <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-1 bg-gray-800/50 rounded-full overflow-hidden">
                 <div
-                    className="h-full bg-orange-500 transition-all duration-100"
+                    className="h-full bg-orange-500 transition-all duration-100 rounded-full"
                     style={{ width: `${progress}%` }}
                 />
             </div>
