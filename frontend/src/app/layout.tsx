@@ -17,6 +17,9 @@ export const metadata: Metadata = {
   title: "SuiPlace",
   description: "A decentralized r/place clone built on Sui blockchain. Place pixels, own your art.",
   keywords: ["Sui", "blockchain", "r/place", "pixel art", "NFT", "decentralized"],
+  icons: {
+    icon: "/suiplace.ico",
+  },
 };
 
 export default function RootLayout({
