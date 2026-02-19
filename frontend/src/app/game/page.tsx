@@ -32,6 +32,7 @@ export default function Game() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
 
   const handlePixelClick = useCallback(async (x: number, y: number) => {
     const cooldownEnd = getCooldownEnd(selectedBlockchain);
@@ -48,6 +49,7 @@ export default function Game() {
 
     if (!walletAddress) {
       setError(`Please connect your ${selectedBlockchain.toUpperCase()} wallet first`);
+      setIsWalletModalOpen(true);
       return;
     }
 
@@ -187,24 +189,30 @@ export default function Game() {
   };
 
   return (
-    <main className="h-screen overflow-hidden bg-gradient-to-br from-orange-950 via-gray-950 to-orange-900 relative">
+    <main className="h-screen overflow-hidden bg-gradient-to-br from-purple-950 via-gray-950 to-indigo-950 relative">
       <Canvas onPixelClick={handlePixelClick} />
 
-      <div className="absolute top-4 left-4 z-40 flex items-center gap-2 bg-orange-900/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-orange-700/50">
+      <div className="absolute top-4 left-4 z-40 flex items-center gap-2 bg-gray-900/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-purple-500/30">
         <Link href="/">
-          <h1 className="text-sm font-bold text-white hover:text-orange-300 transition-colors cursor-pointer">Pixellar</h1>
+          <h1 className="text-sm font-bold text-white hover:text-purple-300 transition-colors cursor-pointer">Pixellar</h1>
         </Link>
-        <span className="text-xs px-1.5 py-0.5 bg-orange-500/20 text-orange-300 rounded font-medium">Multi-Chain</span>
+        <span className="text-xs px-1.5 py-0.5 bg-purple-500/20 text-purple-300 rounded font-medium">Multi-Chain</span>
       </div>
 
-      <div className="absolute top-4 right-4 z-40">
+      <div className="absolute top-4 right-4 z-40 flex items-center gap-3">
         <CooldownTimer />
+        <button
+          onClick={() => setIsWalletModalOpen(true)}
+          className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-all shadow-lg border border-purple-500/50"
+        >
+          Connect Wallet
+        </button>
       </div>
 
       {(isSuiPending || isProcessing) && (
         <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-30">
-          <div className="bg-orange-800 rounded-lg p-4 flex items-center gap-3">
-            <div className="animate-spin w-5 h-5 border-2 border-orange-300 border-t-transparent rounded-full" />
+          <div className="bg-gray-900 rounded-lg p-4 flex items-center gap-3 border border-purple-500/50">
+            <div className="animate-spin w-5 h-5 border-2 border-purple-400 border-t-transparent rounded-full" />
             <span className="text-white">Placing pixel on {selectedBlockchain.toUpperCase()}...</span>
           </div>
         </div>
@@ -222,6 +230,24 @@ export default function Game() {
         </div>
       )}
 
+      {/* Wallet Modal */}
+      {isWalletModalOpen && (
+        <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-gray-900 rounded-2xl p-6 max-w-md w-full mx-4 border border-purple-500/30 shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-white">Connect Wallet</h2>
+              <button
+                onClick={() => setIsWalletModalOpen(false)}
+                className="text-gray-400 hover:text-white transition-colors text-2xl leading-none w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-800"
+              >
+                ×
+              </button>
+            </div>
+            <MultiChainWallet />
+          </div>
+        </div>
+      )}
+
       <div
         className={`absolute bottom-0 left-0 right-0 z-50 transition-transform duration-500 ease-out ${isPanelOpen ? 'translate-y-0' : 'translate-y-full'
           }`}
@@ -229,34 +255,34 @@ export default function Game() {
         <div className="absolute -top-[36px] left-1/2 -translate-x-1/2">
           <button
             onClick={() => setIsPanelOpen(!isPanelOpen)}
-            className="bg-orange-900/95 hover:bg-orange-800/95 backdrop-blur-md text-orange-200 px-6 py-2 rounded-t-lg border border-orange-700 border-b-0 hover:border-orange-600 shadow-xl transition-all duration-200"
+            className="bg-gray-900/95 hover:bg-gray-800/95 backdrop-blur-md text-purple-200 px-6 py-2 rounded-t-lg border border-purple-500/30 border-b-0 hover:border-purple-500/50 shadow-xl transition-all duration-200"
           >
             <span className={`block text-sm transition-transform duration-300 ${isPanelOpen ? 'rotate-180' : ''}`}>↑</span>
           </button>
         </div>
 
-        <div className="bg-orange-900/98 backdrop-blur-xl border-t border-orange-700 overflow-y-auto p-6" style={{ maxHeight: '70vh' }}>
+        <div className="bg-gray-900/98 backdrop-blur-xl border-t border-purple-500/30 overflow-y-auto p-6" style={{ maxHeight: '70vh' }}>
           <div className="max-w-7xl mx-auto">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="bg-orange-800/40 backdrop-blur-sm rounded-lg p-4 border border-orange-700 hover:border-orange-600 transition-colors duration-300">
-                <h2 className="text-xs font-semibold text-orange-200 mb-3">Color Palette</h2>
+              <div className="bg-gray-800/40 backdrop-blur-sm rounded-lg p-4 border border-purple-500/20 hover:border-purple-500/40 transition-colors duration-300">
+                <h2 className="text-xs font-semibold text-purple-200 mb-3">Color Palette</h2>
                 <ColorPicker />
               </div>
 
-              <div className="bg-orange-800/40 backdrop-blur-sm rounded-lg p-4 border border-orange-700 hover:border-orange-600 transition-colors duration-300">
-                <h2 className="text-xs font-semibold text-orange-200 mb-3">Multi-Chain Wallets</h2>
-                <MultiChainWallet />
+              <div className="bg-gray-800/40 backdrop-blur-sm rounded-lg p-4 border border-purple-500/20 hover:border-purple-500/40 transition-colors duration-300">
+                <h2 className="text-xs font-semibold text-purple-200 mb-3">Pixel Details</h2>
+                <PixelInfo />
               </div>
 
-              <div className="bg-orange-800/40 backdrop-blur-sm rounded-lg p-4 border border-orange-700 hover:border-orange-600 transition-colors duration-300">
-                <h2 className="text-xs font-semibold text-orange-200 mb-3">Pixel Details</h2>
-                <PixelInfo />
-                <div className="mt-4 pt-3 border-t border-orange-700/50">
-                  <h3 className="text-xs font-semibold text-orange-200 mb-2">Controls</h3>
-                  <div className="space-y-1.5">
-                    <div className="text-xs text-orange-300 bg-orange-900/30 px-2 py-1.5 rounded">Click to place pixel</div>
-                    <div className="text-xs text-orange-300 bg-orange-900/30 px-2 py-1.5 rounded">Scroll to zoom</div>
-                    <div className="text-xs text-orange-300 bg-orange-900/30 px-2 py-1.5 rounded">Drag to pan</div>
+              <div className="bg-gray-800/40 backdrop-blur-sm rounded-lg p-4 border border-purple-500/20 hover:border-purple-500/40 transition-colors duration-300">
+                <h2 className="text-xs font-semibold text-purple-200 mb-3">Controls</h2>
+                <div className="space-y-1.5">
+                  <div className="text-xs text-purple-300 bg-gray-900/30 px-2 py-1.5 rounded">Click to place pixel</div>
+                  <div className="text-xs text-purple-300 bg-gray-900/30 px-2 py-1.5 rounded">Scroll to zoom</div>
+                  <div className="text-xs text-purple-300 bg-gray-900/30 px-2 py-1.5 rounded">Drag to pan</div>
+                  <div className="flex items-center justify-between text-xs text-purple-400 bg-gray-900/30 px-2 py-1.5 rounded mt-2">
+                    <span>Canvas</span>
+                    <span className="font-mono">{CANVAS_WIDTH} × {CANVAS_HEIGHT}</span>
                   </div>
                 </div>
               </div>

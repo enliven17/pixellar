@@ -43,7 +43,7 @@ interface CanvasState {
 
 export const useCanvasStore = create<CanvasState>((set, get) => ({
     pixels: new Map(),
-    selectedColor: 6, // Default to orange
+    selectedColor: 9, // Default to blue
     selectedBlockchain: 'sui',
     hoverPosition: null,
     isLoading: true,

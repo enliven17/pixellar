@@ -4,23 +4,23 @@ export const CANVAS_HEIGHT = 50;
 export const PIXEL_SIZE = 2; // Display size of each pixel
 export const COOLDOWN_MS = 10000; // 10 seconds
 
-// Pixellar 16-color palette (Orange-themed)
+// Pixellar 16-color palette (Global colors with transparency)
 export const COLORS = [
     '#FFFFFF', // 0 - White
-    '#FFE5CC', // 1 - Light Orange Tint
-    '#FFB366', // 2 - Light Orange
-    '#FF8C00', // 3 - Dark Orange (Primary)
-    '#FF6B35', // 4 - Red Orange
-    '#E55300', // 5 - Burnt Orange
-    '#CC4E00', // 6 - Deep Orange
-    '#A04000', // 7 - Brown Orange
-    '#FFD700', // 8 - Gold
-    '#FFA500', // 9 - Orange
-    '#FF7F00', // 10 - Bright Orange
-    '#FF4500', // 11 - Orange Red
-    '#8B4513', // 12 - Saddle Brown
-    '#654321', // 13 - Dark Brown
-    '#2C1810', // 14 - Very Dark Brown
+    'rgba(200, 200, 200, 0.8)', // 1 - Light Gray (80% opacity)
+    'rgba(255, 200, 200, 0.8)', // 2 - Light Pink (80% opacity)
+    'rgba(255, 100, 100, 0.85)', // 3 - Red (85% opacity)
+    'rgba(255, 150, 0, 0.85)', // 4 - Orange (85% opacity)
+    'rgba(255, 220, 0, 0.8)', // 5 - Yellow (80% opacity)
+    'rgba(100, 200, 100, 0.85)', // 6 - Light Green (85% opacity)
+    'rgba(0, 180, 0, 0.9)', // 7 - Green (90% opacity)
+    'rgba(100, 200, 255, 0.8)', // 8 - Light Blue (80% opacity)
+    'rgba(0, 150, 255, 0.85)', // 9 - Blue (85% opacity)
+    'rgba(100, 100, 255, 0.85)', // 10 - Dark Blue (85% opacity)
+    'rgba(200, 100, 255, 0.85)', // 11 - Purple (85% opacity)
+    'rgba(255, 100, 200, 0.85)', // 12 - Magenta (85% opacity)
+    '#8B4513', // 13 - Brown
+    '#404040', // 14 - Dark Gray
     '#000000', // 15 - Black
 ] as const;
 

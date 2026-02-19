@@ -1,24 +1,27 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useCurrentAccount } from '@mysten/dapp-kit';
+import { ConnectButton, useCurrentAccount } from '@mysten/dapp-kit';
 import { useCanvasStore } from '@/lib/store';
 import { BlockchainType } from '@/lib/constants';
-
-// Freighter API for Stellar
-declare global {
-    interface Window {
-        freighter?: any;
-        starknet?: any;
-    }
-}
+import { StellarWalletsKit, WalletNetwork, ISupportedWallet, XBULL_ID } from '@creit.tech/stellar-wallets-kit';
 
 export default function MultiChainWallet() {
-    const suiAccount = useCurrentAccount();
-    const { selectedBlockchain, setSelectedBlockchain, connectedWallets, setWalletAddress } = useCanvasStore();
-    
+    const [stellarKit, setStellarKit] = useState<StellarWalletsKit | null>(null);
     const [stellarAddress, setStellarAddress] = useState<string | null>(null);
     const [starknetAddress, setStarknetAddress] = useState<string | null>(null);
+    const suiAccount = useCurrentAccount();
+    const { selectedBlockchain, setSelectedBlockchain, setWalletAddress } = useCanvasStore();
+
+    // Initialize Stellar Wallets Kit
+    useEffect(() => {
+        const kit = new StellarWalletsKit({
+            network: WalletNetwork.TESTNET,
+            selectedWalletId: XBULL_ID,
+            modules: []
+        });
+        setStellarKit(kit);
+    }, []);
 
     // Update Sui wallet in store
     useEffect(() => {
@@ -27,16 +30,18 @@ export default function MultiChainWallet() {
 
     // Connect Stellar wallet
     const connectStellar = async () => {
+        if (!stellarKit) return;
+        
         try {
-            if (!window.freighter) {
-                alert('Please install Freighter wallet extension');
-                window.open('https://www.freighter.app/', '_blank');
-                return;
-            }
-
-            const publicKey = await window.freighter.getPublicKey();
-            setStellarAddress(publicKey);
-            setWalletAddress('stellar', publicKey);
+            await stellarKit.openModal({
+                onWalletSelected: async (option: ISupportedWallet) => {
+                    stellarKit.setWallet(option.id);
+                    const publicKey = await stellarKit.getPublicKey();
+                    setStellarAddress(publicKey);
+                    setWalletAddress('stellar', publicKey);
+                    setSelectedBlockchain('stellar');
+                }
+            });
         } catch (error) {
             console.error('Failed to connect Stellar wallet:', error);
         }
@@ -46,7 +51,7 @@ export default function MultiChainWallet() {
     const connectStarknet = async () => {
         try {
             if (!window.starknet) {
-                alert('Please install ArgentX or Braavos wallet extension');
+                alert('Please install ArgentX or Braavos wallet extension for Starknet');
                 window.open('https://www.argent.xyz/argent-x/', '_blank');
                 return;
             }
@@ -55,8 +60,10 @@ export default function MultiChainWallet() {
             const address = window.starknet.selectedAddress;
             setStarknetAddress(address);
             setWalletAddress('starknet', address);
+            setSelectedBlockchain('starknet');
         } catch (error) {
             console.error('Failed to connect Starknet wallet:', error);
+            alert('Failed to connect Starknet wallet. Please try again.');
         }
     };
 
@@ -64,92 +71,141 @@ export default function MultiChainWallet() {
         return `${address.slice(0, 6)}...${address.slice(-4)}`;
     };
 
+    const getChainIcon = (chain: BlockchainType) => {
+        switch (chain) {
+            case 'sui': return '🔵';
+            case 'stellar': return '⭐';
+            case 'starknet': return '🟠';
+        }
+    };
+
     return (
-        <div className="flex flex-col gap-2 p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg border-2 border-orange-300">
-            <h3 className="text-sm font-bold text-orange-900 mb-2">Select Blockchain</h3>
-            
-            {/* Blockchain Selector */}
-            <div className="flex gap-2 mb-3">
+        <div className="space-y-4">
+            {/* Blockchain Selection */}
+            <div className="grid grid-cols-3 gap-3">
                 <button
                     onClick={() => setSelectedBlockchain('sui')}
-                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                    className={`relative p-4 rounded-xl transition-all duration-200 ${
                         selectedBlockchain === 'sui'
-                            ? 'bg-orange-600 text-white shadow-md'
-                            : 'bg-white text-orange-700 hover:bg-orange-50'
+                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/50 scale-105'
+                            : 'bg-gray-800/50 text-gray-400 hover:bg-gray-800 hover:text-white'
                     }`}
                 >
-                    Sui
+                    <div className="text-2xl mb-1">{getChainIcon('sui')}</div>
+                    <div className="text-xs font-medium">Sui</div>
+                    {selectedBlockchain === 'sui' && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-900"></div>
+                    )}
                 </button>
+
                 <button
                     onClick={() => setSelectedBlockchain('stellar')}
-                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                    className={`relative p-4 rounded-xl transition-all duration-200 ${
                         selectedBlockchain === 'stellar'
-                            ? 'bg-orange-600 text-white shadow-md'
-                            : 'bg-white text-orange-700 hover:bg-orange-50'
+                            ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/50 scale-105'
+                            : 'bg-gray-800/50 text-gray-400 hover:bg-gray-800 hover:text-white'
                     }`}
                 >
-                    Stellar
+                    <div className="text-2xl mb-1">{getChainIcon('stellar')}</div>
+                    <div className="text-xs font-medium">Stellar</div>
+                    {selectedBlockchain === 'stellar' && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-900"></div>
+                    )}
                 </button>
+
                 <button
                     onClick={() => setSelectedBlockchain('starknet')}
-                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                    className={`relative p-4 rounded-xl transition-all duration-200 ${
                         selectedBlockchain === 'starknet'
-                            ? 'bg-orange-600 text-white shadow-md'
-                            : 'bg-white text-orange-700 hover:bg-orange-50'
+                            ? 'bg-orange-600 text-white shadow-lg shadow-orange-500/50 scale-105'
+                            : 'bg-gray-800/50 text-gray-400 hover:bg-gray-800 hover:text-white'
                     }`}
                 >
-                    Starknet
+                    <div className="text-2xl mb-1">{getChainIcon('starknet')}</div>
+                    <div className="text-xs font-medium">Starknet</div>
+                    {selectedBlockchain === 'starknet' && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-900"></div>
+                    )}
                 </button>
             </div>
 
-            {/* Wallet Connection Status */}
-            <div className="space-y-2">
-                {/* Sui Wallet */}
-                <div className="flex items-center justify-between p-2 bg-white rounded border border-orange-200">
-                    <span className="text-xs font-medium text-orange-900">Sui:</span>
-                    {suiAccount ? (
-                        <span className="text-xs text-orange-700">{formatAddress(suiAccount.address)}</span>
-                    ) : (
-                        <span className="text-xs text-gray-400">Not connected</span>
-                    )}
-                </div>
+            {/* Wallet Connection */}
+            <div className="bg-gray-800/30 rounded-xl p-4 border border-gray-700/50">
+                {selectedBlockchain === 'sui' && (
+                    <div>
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-sm text-gray-400">Sui Wallet</span>
+                            {suiAccount && (
+                                <span className="text-xs text-green-400 flex items-center gap-1">
+                                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                    Connected
+                                </span>
+                            )}
+                        </div>
+                        <ConnectButton
+                            connectText={suiAccount ? formatAddress(suiAccount.address) : "Connect Sui Wallet"}
+                            className="!w-full !bg-blue-600 !hover:bg-blue-700 !text-white !px-4 !py-3 !rounded-lg !text-sm !font-medium !transition-all !shadow-lg !shadow-blue-500/20"
+                        />
+                    </div>
+                )}
 
-                {/* Stellar Wallet */}
-                <div className="flex items-center justify-between p-2 bg-white rounded border border-orange-200">
-                    <span className="text-xs font-medium text-orange-900">Stellar:</span>
-                    {stellarAddress ? (
-                        <span className="text-xs text-orange-700">{formatAddress(stellarAddress)}</span>
-                    ) : (
-                        <button
-                            onClick={connectStellar}
-                            className="text-xs text-orange-600 hover:text-orange-800 underline"
-                        >
-                            Connect
-                        </button>
-                    )}
-                </div>
+                {selectedBlockchain === 'stellar' && (
+                    <div>
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-sm text-gray-400">Stellar Wallet</span>
+                            {stellarAddress && (
+                                <span className="text-xs text-green-400 flex items-center gap-1">
+                                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                    Connected
+                                </span>
+                            )}
+                        </div>
+                        {stellarAddress ? (
+                            <div className="bg-purple-600/20 border border-purple-500/30 rounded-lg px-4 py-3 text-sm text-purple-300 font-mono">
+                                {formatAddress(stellarAddress)}
+                            </div>
+                        ) : (
+                            <button
+                                onClick={connectStellar}
+                                className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg text-sm font-medium transition-all shadow-lg shadow-purple-500/20"
+                            >
+                                Connect Stellar Wallet
+                            </button>
+                        )}
+                        <p className="text-xs text-gray-500 mt-2 text-center">
+                            Supports Freighter, xBull, Albedo & more
+                        </p>
+                    </div>
+                )}
 
-                {/* Starknet Wallet */}
-                <div className="flex items-center justify-between p-2 bg-white rounded border border-orange-200">
-                    <span className="text-xs font-medium text-orange-900">Starknet:</span>
-                    {starknetAddress ? (
-                        <span className="text-xs text-orange-700">{formatAddress(starknetAddress)}</span>
-                    ) : (
-                        <button
-                            onClick={connectStarknet}
-                            className="text-xs text-orange-600 hover:text-orange-800 underline"
-                        >
-                            Connect
-                        </button>
-                    )}
-                </div>
-            </div>
-
-            {/* Active Blockchain Indicator */}
-            <div className="mt-2 p-2 bg-orange-600 text-white rounded text-center">
-                <span className="text-xs font-bold">
-                    Active: {selectedBlockchain.toUpperCase()}
-                </span>
+                {selectedBlockchain === 'starknet' && (
+                    <div>
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-sm text-gray-400">Starknet Wallet</span>
+                            {starknetAddress && (
+                                <span className="text-xs text-green-400 flex items-center gap-1">
+                                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                    Connected
+                                </span>
+                            )}
+                        </div>
+                        {starknetAddress ? (
+                            <div className="bg-orange-600/20 border border-orange-500/30 rounded-lg px-4 py-3 text-sm text-orange-300 font-mono">
+                                {formatAddress(starknetAddress)}
+                            </div>
+                        ) : (
+                            <button
+                                onClick={connectStarknet}
+                                className="w-full bg-orange-600 hover:bg-orange-700 text-white px-4 py-3 rounded-lg text-sm font-medium transition-all shadow-lg shadow-orange-500/20"
+                            >
+                                Connect Starknet Wallet
+                            </button>
+                        )}
+                        <p className="text-xs text-gray-500 mt-2 text-center">
+                            Supports ArgentX & Braavos
+                        </p>
+                    </div>
+                )}
             </div>
         </div>
     );
